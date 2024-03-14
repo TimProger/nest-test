@@ -1,82 +1,58 @@
 import { Injectable } from '@nestjs/common';
 import { CreateProductDto } from './dto/create-product.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Product } from './entities/product.entity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class ProductsService {
-    private products = [
-        {
-            id: 0,
-            name: 'product 1'
-        },
-        {
-            id: 1,
-            name: 'product 2'
-        },
-        {
-            id: 2,
-            name: 'product 3'
-        },
-    ]
+    constructor(@InjectRepository(Product) private productsRepository: Repository<Product>) {}
 
-    getProducts(name?: string) {
-        if (name) {
-            return this.products.filter(product => product.name === name)
-        }
-        return this.products
+    async getProducts(): Promise<Product[]> {
+        // const service = new ProductsService();
+        const products = await this.productsRepository.find();
+        return products
     }
 
-    getOneProducts(id: number) {
-        const found = this.products.find(product => product.id === id)
-        if(!found){
+    async getOneProductById(id: number): Promise<Product> {
+        try {
+            const product = await this.productsRepository.findOneByOrFail({id});
+            return product
+        } catch (error) {
             throw new Error('Product not found')
         }
-        return found
     }
 
-    removeOneProducts(id: number) {
-        const found = this.products.find(product => product.id === id)
-
-        if(!found){
+    async getOneProduct(id: number): Promise<Product> {
+        try {
+            const product = await this.productsRepository.findOneByOrFail({id});
+            return product
+        } catch (error) {
             throw new Error('Product not found')
         }
+    }
 
-        if(found) {
-            const index = this.products.indexOf(found)
-            this.products.splice(index, 1)
-            return {
-                success: true
-            }
-        }else{
-            return {
-                success: false
-            }
+    async createOneProduct(createProductDto: CreateProductDto): Promise<Product> {
+        const newProduct = this.productsRepository.create(createProductDto);
+        return this.productsRepository.save(newProduct);
+    }
+
+    async deleteProduct(id: number): Promise<Product> {
+        try {
+            const product = await this.getOneProductById(id);
+            return this.productsRepository.remove(product)
+        } catch (error) {
+            throw new Error('Product not found')
         }
     }
 
-    updateOneProducts(id: number, createProductDto: CreateProductDto) {
-        const found = this.products.find(product => product.id !== id)
-        if(found) {
-            const index = this.products.indexOf(found)
-            this.products[index] = {
-                ...createProductDto,
-                id: found.id
-            }
-            return {
-                success: true
-            }
-        }else{
-            return {
-                success: false
-            }
-        }
+    async updateOneProduct(id: number, createProductDto: CreateProductDto): Promise<Product> {
+        const product = await this.getOneProductById(id);
+        return this.productsRepository.save({...product, ...createProductDto});
     }
 
-    createProducts(createProductDto: CreateProductDto) {
-        const newProduct = {
-            id: Date.now(),
-            ...createProductDto
-        }
-        this.products.push(newProduct)
-        return newProduct
+    async customQuery(): Promise<Product[]> {
+        const products = await this.productsRepository.createQueryBuilder('products').select('name').getMany();
+        return products
     }
 }
